@@ -43,7 +43,6 @@ public class JedisConfig extends CachingConfigurerSupport {
         logger.info("JedisPool 注入成功");
         logger.info(MessageFormat.format("Redis 地址：{0},{1}",host,port));
         return pool;
-
     }
 
 
