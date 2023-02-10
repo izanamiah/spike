@@ -1,6 +1,7 @@
 package com.jiuzhang.seckill.services;
 
 import com.alibaba.fastjson.JSON;
+import com.jiuzhang.seckill.db.dao.OrderDao;
 import com.jiuzhang.seckill.db.dao.SeckillActivityDao;
 import com.jiuzhang.seckill.db.po.Order;
 import com.jiuzhang.seckill.db.po.SeckillActivity;
@@ -9,6 +10,7 @@ import com.jiuzhang.seckill.util.SnowFlake;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Date;
 
 @Service
 public class SeckillActivityService {
@@ -43,16 +45,13 @@ public class SeckillActivityService {
 
     private SnowFlake snowFlake = new SnowFlake(1,1);
 
-
-
      /**
-     * 创建订单
-     *
-     * @param seckillActivityId
+      * 创建订单
+      * @param seckillActivityId
       * @param userId
       * @return
       * @throws Exception
-      */
+      **/
 
     public Order createOrder(long seckillActivityId, long userId) throws Exception{
         SeckillActivity activity = seckillActivityDao.querySeckillActivityById(seckillActivityId);
@@ -67,4 +66,23 @@ public class SeckillActivityService {
         return order;
     }
 
+    @Resource
+    private OrderDao orderDao;
+
+    /**
+     * 订单支付完成处理
+     * * @param orderNo */
+    public void payOrderProcess(String orderNo) {
+        Order order = orderDao.queryOrder(orderNo);
+        boolean deductStockResult = seckillActivityDao.deductStock(order.getSeckillActivityId());
+
+        if (deductStockResult) {
+            order.setPayTime(new Date());
+            // 0 没有可用库存，无效订单
+            // 1 已创建并等待支付
+            // 2 完成支付
+            order.setOrderStatus(2);
+            orderDao.updateOrder(order);
+        }
+    }
 }
