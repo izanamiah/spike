@@ -6,6 +6,7 @@ import com.prospect.spike.db.dao.SeckillCommodityDao;
 import com.prospect.spike.db.po.Order;
 import com.prospect.spike.db.po.SeckillActivity;
 import com.prospect.spike.db.po.SeckillCommodity;
+import com.prospect.spike.services.RedisService;
 import com.prospect.spike.services.SeckillActivityService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -75,12 +77,9 @@ public class SeckillActivityController {
     @Autowired
     private SeckillCommodityDao seckillCommodityDao;
     @RequestMapping("/item/{seckillActivityId}")
-    public String itemPage(Map<String, Object> resultMap, @PathVariable long
-            seckillActivityId) {
-        SeckillActivity seckillActivity =
-                seckillActivityDao.querySeckillActivityById(seckillActivityId);
-        SeckillCommodity seckillCommodity =
-                seckillCommodityDao.querySeckillCommodityById(seckillActivity.getCommodityId());
+    public String itemPage(Map<String, Object> resultMap, @PathVariable long seckillActivityId) {
+        SeckillActivity seckillActivity = seckillActivityDao.querySeckillActivityById(seckillActivityId);
+        SeckillCommodity seckillCommodity = seckillCommodityDao.querySeckillCommodityById(seckillActivity.getCommodityId());
         resultMap.put("seckillActivity", seckillActivity);
         resultMap.put("seckillCommodity", seckillCommodity);
         resultMap.put("seckillPrice", seckillActivity.getSeckillPrice());
@@ -99,6 +98,8 @@ public class SeckillActivityController {
      * @param seckillActivityId
      * @return
      */
+    @Resource
+    private RedisService redisService;
     @RequestMapping("/seckill/buy/{userId}/{seckillActivityId}")
     public ModelAndView seckillCommodity(
             @PathVariable long userId,
@@ -106,6 +107,16 @@ public class SeckillActivityController {
     ){
         boolean stockValidateResult = false;
         ModelAndView modelAndView = new ModelAndView();
+
+        /*
+         * 判断用户是否在已购名单中
+         */
+        if (redisService.isInLimitMember(seckillActivityId, userId)) {
+            //提示用户已经在限购名单中，返回结果
+            modelAndView.addObject("resultInfo", "对不起，您已经在限购名单中");
+            modelAndView.setViewName("seckill_result");
+            return modelAndView;
+        }
 
         try {
             /*
@@ -116,6 +127,7 @@ public class SeckillActivityController {
                 Order order = seckillActivityService.createOrder(seckillActivityId, userId);
                 modelAndView.addObject("resultInfo","秒杀成功，订单创建中，订单ID:" + order.getOrderNo());
                 modelAndView.addObject("orderNo",order.getOrderNo());
+                redisService.addLimitMember(seckillActivityId,userId);
             } else {
                 modelAndView.addObject("resultInfo","对不起，商品库存不足");
             }
@@ -169,6 +181,23 @@ public class SeckillActivityController {
         seckillActivityService.payOrderProcess(orderNo);
         return"redirect:/seckill/orderQuery/" + orderNo;
     }
+
+
+    /**
+     * 同步抢购倒计时
+     * 获取当前服务器端的时间
+     * @return
+     */
+    @ResponseBody
+    @RequestMapping("/seckill/getSystemTime")
+    public String getSystemTime() {
+        //设置日期格式
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); // new Date()为获取当前系统时间
+        String date = df.format(new Date());
+        return date;
+    }
+
+
 
 
 };

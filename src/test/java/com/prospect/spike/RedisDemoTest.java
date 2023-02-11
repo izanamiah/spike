@@ -1,7 +1,9 @@
 package com.prospect.spike;
 
 import com.prospect.spike.services.RedisService;
+import com.prospect.spike.services.SeckillActivityService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
@@ -24,4 +26,7 @@ public class RedisDemoTest {
         String stock =  redisService.getValue("stock:19");
         System.out.println("stock:"+stock);
     }
+
+
+
 }
